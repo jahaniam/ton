@@ -16,9 +16,8 @@
 #include "fabric.h"
 #include <ctime>
 
-// The implementation has been split into multiple files:
-// - error-ctx.cpp: ErrorCtx related implementations
-// - contest-validate-query-init.cpp: Initialization and startup related functions
-// - contest-validate-query-state.cpp: State handling functions
-// - contest-validate-query-validation.cpp: Validation related functions
-// - contest-validate-query-queue.cpp: Message queue related functions
+// The implementation has been split into multiple files
+// contest-validate-query_p1.cpp
+// contest-validate-query_p2.cpp
+// ...
+// contest-validate-query_p11.cpp
