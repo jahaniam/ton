@@ -315,6 +315,8 @@ std::unique_ptr<block::Account> ContestValidateQuery::unpack_account(td::ConstBi
  */
 bool ContestValidateQuery::check_one_transaction(block::Account& account, ton::LogicalTime lt, Ref<vm::Cell> trans_root,
                                                  bool is_first, bool is_last) {
+  auto start_time = std::chrono::high_resolution_clock::now();
+
   LOG(DEBUG) << "checking transaction " << lt << " of account " << account.addr.to_hex();
   const StdSmcAddress& addr = account.addr;
   block::gen::Transaction::Record trans;
@@ -389,6 +391,8 @@ bool ContestValidateQuery::check_one_transaction(block::Account& account, ton::L
       }
       CHECK(money_imported.is_valid());
     }
+    std::cout << "checkone reached here 0 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
     WorkchainId d_wc;
     StdSmcAddress d_addr;
     CHECK(block::tlb::t_MsgAddressInt.extract_std_address(dest, d_wc, d_addr));
@@ -414,6 +418,8 @@ bool ContestValidateQuery::check_one_transaction(block::Account& account, ton::L
       ++new_msg_metadata.value().depth;
     }
   }
+  std::cout << "checkone reached here 1 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   vm::Dictionary out_dict{trans.r1.out_msgs, 15};
   for (int i = 0; i < trans.outmsg_cnt; i++) {
     auto out_msg_root = out_dict.lookup_ref(td::BitArray<15>{i});
@@ -466,6 +472,8 @@ bool ContestValidateQuery::check_one_transaction(block::Account& account, ton::L
                                       << (msg_env.metadata ? msg_env.metadata.value().to_str() : "<none>"));
       }
     }
+    std::cout << "checkone reached here 2 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
     WorkchainId s_wc;
     StdSmcAddress ss_addr;  // s_addr is some macros in Windows
     CHECK(block::tlb::t_MsgAddressInt.extract_std_address(src, s_wc, ss_addr));
@@ -504,6 +512,8 @@ bool ContestValidateQuery::check_one_transaction(block::Account& account, ton::L
       }
     }
   }
+  std::cout << "checkone reached here 3 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   CHECK(money_exported.is_valid());
   // check general transaction data
   block::CurrencyCollection old_balance{account.get_balance()};
@@ -554,6 +564,8 @@ bool ContestValidateQuery::check_one_transaction(block::Account& account, ton::L
                                   << hash_upd.old_hash.to_hex() << " but the actual value is "
                                   << account.total_state->get_hash().to_hex());
   }
+    std::cout << "checkone reached here 5 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   // some type-specific checks
   int trans_type = block::transaction::Transaction::tr_none;
   switch (tag) {
@@ -647,7 +659,8 @@ bool ContestValidateQuery::check_one_transaction(block::Account& account, ton::L
   // ....
   // check transaction computation by re-doing it
   // similar to Collator::create_ordinary_transaction() and Collator::create_ticktock_transaction()
-  // ....
+  std::cout << "checkone reached here 6 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+// ....
   std::unique_ptr<block::transaction::Transaction> trs =
       std::make_unique<block::transaction::Transaction>(account, trans_type, lt, now_, in_msg_root);
   if (in_msg_root.not_null()) {
@@ -658,6 +671,8 @@ bool ContestValidateQuery::check_one_transaction(block::Account& account, ton::L
                                     << addr.to_hex());
     }
   }
+    std::cout << "checkone reached here 6.1 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   if (trs->bounce_enabled) {
     if (!trs->prepare_storage_phase(storage_phase_cfg_, true)) {
       return reject_query(PSTRING() << "cannot re-create storage phase of transaction " << lt << " for smart contract "
@@ -677,24 +692,36 @@ bool ContestValidateQuery::check_one_transaction(block::Account& account, ton::L
                                     << addr.to_hex());
     }
   }
+    std::cout << "checkone reached here 6.2 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   if (!trs->prepare_compute_phase(compute_phase_cfg_)) {
     return reject_query(PSTRING() << "cannot re-create compute phase of transaction " << lt << " for smart contract "
                                   << addr.to_hex());
   }
+  std::cout << "checkone reached here 6.21 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   if (!trs->compute_phase->accepted) {
     if (external) {
+        std::cout << "checkone reached here 6.211 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
       return reject_query(PSTRING() << "inbound external message claimed to be processed by ordinary transaction " << lt
                                     << " of account " << addr.to_hex()
                                     << " was in fact rejected (such transaction cannot appear in valid blocks)");
     } else if (trs->compute_phase->skip_reason == block::ComputePhase::sk_none) {
+      std::cout << "checkone reached here 6.212 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
       return reject_query(PSTRING() << "inbound internal message processed by ordinary transaction " << lt
                                     << " of account " << addr.to_hex() << " was not processed without any reason");
     }
   }
+  std::cout << "checkone reached here 6.22 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   if (trs->compute_phase->success && !trs->prepare_action_phase(action_phase_cfg_)) {
     return reject_query(PSTRING() << "cannot re-create action phase of transaction " << lt << " for smart contract "
                                   << addr.to_hex());
   }
+  std::cout << "checkone reached here 6.3 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   if (trs->bounce_enabled &&
       (!trs->compute_phase->success || trs->action_phase->state_exceeds_limits || trs->action_phase->bounce) &&
       !trs->prepare_bounce_phase(action_phase_cfg_)) {
@@ -735,6 +762,8 @@ bool ContestValidateQuery::check_one_transaction(block::Account& account, ton::L
     return reject_query(PSTRING() << "the re-created transaction " << lt << " for smart contract " << addr.to_hex()
                                   << " could not be committed");
   }
+    std::cout << "checkone reached here 6.5 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   // now compare the re-created transaction with the one we have
   if (trans_root2->get_hash() != trans_root->get_hash()) {
     if (verbosity >= 3 * 0) {
@@ -748,6 +777,8 @@ bool ContestValidateQuery::check_one_transaction(block::Account& account, ton::L
                                   << " different from that of the recreated transaction "
                                   << trans_root2->get_hash().to_hex());
   }
+  std::cout << "checkone reached here 7 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   block::gen::Transaction::Record trans2;
   block::gen::HASH_UPDATE::Record hash_upd2;
   if (!(tlb::unpack_cell(trans_root2, trans2) &&
@@ -792,6 +823,8 @@ bool ContestValidateQuery::check_one_transaction(block::Account& account, ton::L
                   << (trs->blackhole_burned.is_zero() ? ""
                                                       : PSTRING() << " burned=" << trs->blackhole_burned.to_str()));
   }
+  std::cout << "checkone took  " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   return true;
 }
 

@@ -15,6 +15,7 @@
 #include "common/errorlog.h"
 #include "fabric.h"
 #include <ctime>
+#include <chrono>
 
 namespace solution {
 
@@ -35,6 +36,9 @@ using namespace std::literals::string_literals;
  * @returns True if the account transactions are valid, false otherwise.
  */
 bool ContestValidateQuery::check_account_transactions(const StdSmcAddress& acc_addr, Ref<vm::CellSlice> acc_blk_root) {
+  std::cout << "check_account_transactions enter" << std::endl;
+
+  auto start_time = std::chrono::high_resolution_clock::now();
   block::gen::AccountBlock::Record acc_blk;
   CHECK(tlb::csr_unpack(std::move(acc_blk_root), acc_blk) && acc_blk.account_addr == acc_addr);
   auto account_p = unpack_account(acc_addr.cbits());
@@ -47,17 +51,29 @@ bool ContestValidateQuery::check_account_transactions(const StdSmcAddress& acc_a
                                      block::tlb::aug_AccountTransactions};
   td::BitArray<64> min_trans, max_trans;
   CHECK(trans_dict.get_minmax_key(min_trans).not_null() && trans_dict.get_minmax_key(max_trans, true).not_null());
+  std::cout << "check_account_transactions reached here -3 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   ton::LogicalTime min_trans_lt = min_trans.to_ulong(), max_trans_lt = max_trans.to_ulong();
+  std::cout << "check_account_transactions reached here -3.1 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+
   if (!trans_dict.check_for_each_extra([this, &account, min_trans_lt, max_trans_lt](Ref<vm::CellSlice> value,
                                                                                     Ref<vm::CellSlice> extra,
                                                                                     td::ConstBitPtr key, int key_len) {
+        
+        auto start_time_1 = std::chrono::high_resolution_clock::now();
+
         CHECK(key_len == 64);
         ton::LogicalTime lt = key.get_uint(64);
+        std::cout << "check_account_transactions reached here -3.3 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time_1).count() << std::endl;
+
         extra.clear();
+        std::cout << "check_account_transactions reached here -3.3 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time_1).count() << std::endl;
+
         return check_one_transaction(account, lt, value->prefetch_ref(), lt == min_trans_lt, lt == max_trans_lt);
       })) {
     return reject_query("at least one Transaction of account "s + acc_addr.to_hex() + " is invalid");
   }
+  std::cout << "check_account_transactions reached here -2 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
 
   // See Collator::combine_account_trabsactions
   if (account.total_state->get_hash() != account.orig_total_state->get_hash()) {
@@ -74,7 +90,8 @@ bool ContestValidateQuery::check_account_transactions(const StdSmcAddress& acc_a
                            " into ShardAccounts");
       }
     } else if (account.status == block::Account::acc_nonexist) {
-      // account deleted
+        std::cout << "check_account_transactions reached here -1 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+// account deleted
       if (verbosity > 2) {
         std::cerr << "deleting account " << account.addr.to_hex() << " with empty new value ";
         block::gen::t_Account.print_ref(std::cerr, account.total_state);
@@ -83,11 +100,13 @@ bool ContestValidateQuery::check_account_transactions(const StdSmcAddress& acc_a
         return fatal_error(std::string{"cannot delete account "} + account.addr.to_hex() + " from ShardAccounts");
       }
     } else {
-      // existing account modified
+        std::cout << "check_account_transactions reached here 0 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+// existing account modified
       if (verbosity > 4) {
         std::cerr << "modifying account " << account.addr.to_hex() << " to ";
         block::gen::t_Account.print_ref(std::cerr, account.total_state);
       }
+
       vm::CellBuilder cb;
       if (!(cb.store_ref_bool(account.total_state)             // account_descr$_ account:^Account
             && cb.store_bits_bool(account.last_trans_hash_)    // last_trans_hash:bits256
@@ -98,6 +117,8 @@ bool ContestValidateQuery::check_account_transactions(const StdSmcAddress& acc_a
       }
     }
   }
+
+  std::cout << "check_account_transactions reached here 1 at " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
 
   block::gen::HASH_UPDATE::Record hash_upd;
   if (!tlb::type_unpack_cell(std::move(acc_blk.state_update), block::gen::t_HASH_UPDATE_Account, hash_upd)) {
@@ -117,6 +138,13 @@ bool ContestValidateQuery::check_account_transactions(const StdSmcAddress& acc_a
                         " has incorrect new hash");
   }
 
+  auto end_time = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = end_time - start_time;
+  std::cout << "check_account_transactions took " << duration.count() << " seconds" << std::endl;
+  if (duration.count() > 0.004) {
+    std::cout << "************************************************************************** check_account_transactions > 0.004 ******************************************************************************" << std::endl;
+  }
+
   return true;
 }
 
@@ -126,6 +154,8 @@ bool ContestValidateQuery::check_account_transactions(const StdSmcAddress& acc_a
  * @returns True if all transactions pass the check, False otherwise.
  */
 bool ContestValidateQuery::check_transactions() {
+  auto start_time = std::chrono::high_resolution_clock::now();
+
   LOG(INFO) << "checking all transactions";
   ns_.account_dict_ =
       std::make_unique<vm::AugmentedDictionary>(ps_.account_dict_->get_root(), 256, block::tlb::aug_ShardAccounts);
@@ -134,6 +164,10 @@ bool ContestValidateQuery::check_transactions() {
         CHECK(key_len == 256);
         return check_account_transactions(key, std::move(value));
       });
+
+  auto end_time = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = end_time - start_time;
+  std::cout << "check_transactions took " << duration.count() << " seconds" << std::endl;
 
   return ok;
 }
